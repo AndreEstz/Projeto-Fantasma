@@ -13,7 +13,7 @@ library(readr)
 library(ggplot2)
 library(tidyr)
 library(tidyverse)
-setwd('C:/Users/André/OneDrive/Documentos/Documents/Trabalho/Projeto-Fantasma')
+#setwd('C:/Users/André/OneDrive/Documentos/Documents/Trabalho/Projeto-Fantasma')
 
 #____ Bancos ----
 
@@ -125,24 +125,23 @@ print_quadro_resumo <- function(data, title="Medidas resumo da(o) [nome da vari�
 }
 ### 1) Numero de Lançamentos ----
 # Filtrando o data set
-data_e_lançamentos <- banco %>% select(date_aired,format )
-data_em_ano <- data.frame(year(data_e_lançamentos$date_aired))
-data_e_lançamentos <- data_e_lançamentos %>% mutate(data_em_ano)
+data_e_lançamentos <- banco %>% select(date_aired,format ) %>% mutate(year(date_aired))
+
 
 #Renomeando A coluna para tornar mais facil
-names(data_e_lançamentos)[names(data_e_lançamentos) == 'year.data_e_lançamentos.date_aired.'] <- 'Launch_Year'
+names(data_e_lançamentos)[names(data_e_lançamentos) == 'year(date_aired)'] <- 'Launch_Year'
 data_e_lançamentos <- subset(data_e_lançamentos, select = -c(date_aired))
 names(data_e_lançamentos)[names(data_e_lançamentos) == 'format'] <- 'Formatos'
 
 #Definindo as décadas 
 data_e_lançamentos <- data_e_lançamentos %>% mutate(Decada = case_when(
-  Launch_Year >= 1960 & Launch_Year <1970 ~ "1960-1970",
-  Launch_Year >= 1970 & Launch_Year <1980 ~ "1970-1980",
-  Launch_Year >= 1980 & Launch_Year <1990 ~ "1980-1990",
-  Launch_Year >= 1990 & Launch_Year <2000 ~ "1990-2000",
-  Launch_Year >= 2000 & Launch_Year <2010 ~ "2000-2010",
-  Launch_Year >= 2010 & Launch_Year <2020 ~ "2010-2020",
-  Launch_Year >= 2020 ~ "2020-",
+  Launch_Year >= 1960 & Launch_Year <1970 ~ "60",
+  Launch_Year >= 1970 & Launch_Year <1980 ~ "70",
+  Launch_Year >= 1980 & Launch_Year <1990 ~ "80",
+  Launch_Year >= 1990 & Launch_Year <2000 ~ "90",
+  Launch_Year >= 2000 & Launch_Year <2010 ~ "2000",
+  Launch_Year >= 2010 & Launch_Year <2020 ~ "2010",
+  Launch_Year >= 2020 ~ "2020",
 ))
 data_e_lançamentos <- subset(data_e_lançamentos, select = -c(Launch_Year))
 
@@ -158,36 +157,36 @@ data_e_lançamentos <- data_e_lançamentos %>%
 data_e_lançamentos <- data_e_lançamentos %>%
   mutate(Formatos = recode(Formatos, Movie = 'Filme', CrossOver = 'Crossover', Serie = 'Série'))
 
+#Colocando ordem nos elementos
+level_order1 <- c('60', '70', '80', '90', '2000', '2010', '2020')
+
+
 #Gerando o gráfico final
 ggplot(data_e_lançamentos) +
-  aes(x = Decada, y = n , group = Formatos, colour = Formatos) +
+  aes(x = factor(Decada, level = level_order1), y = n , group = Formatos, colour = Formatos) +
   geom_line(size = 1) +
   geom_line(size = 1) +
   geom_line(size = 1) +
   geom_point(size = 2) +
-  labs(x = "Décadas", y = "Quantidade de Lançamentos") +
+  labs(x = "Décadas", y = "Frequência") +
   theme_estat()
-ggsave(file.path(caminho_andre, "numero_de_lançamentos.pdf"), width = 158, height = 93, units = "mm")     
+#ggsave(file.path(caminho_andre, "numero_de_lançamentos.pdf"), width = 158, height = 93, units = "mm")     
 
 ### 2) Variação IMDB ----
-
 #Colocar eixo x episodios y imdb e colocar em grupos na tag das temporadas
 
-df_imdbeTemp <- banco %>% select(season, imdb)
-excludente1 <- filter(df_imdbeTemp, season == 'Movie')
-excluddente2 <- filter(df_imdbeTemp, season == 'Crossover')
-df_imdbeTemp <- anti_join(df_imdbeTemp, excludente1)
-df_imdbeTemp <- anti_join(df_imdbeTemp, excluddente2)
+df_imdbeTemp <- banco %>% filter(season %in% c(1,2,3,4)) %>% select(season, imdb);
 
-# Ordenando as variáveis
-level_order <- c('1', '2', '3', '4', 'Especial')
-
-#Mudando nome das variaveis
+# Mudando nome das variaveis
 df_imdbeTemp <- df_imdbeTemp %>%
   mutate(season = recode(season,Special = 'Especial'))
 names(df_imdbeTemp)[names(df_imdbeTemp) == 'season'] <- 'Temporada'
+df_imdbeTemp <- df_imdbeTemp %>% mutate(Temporada = recode(Temporada, '1' = '1°', '2' = '2°', '3' = '3°', '4' = '4°'))
 
-# Blox pot
+#Ordenando as variáveis
+level_order <- c('1°', '2°', '3°', '4°')
+
+#Blox pot
  ggplot(df_imdbeTemp) +
   aes(x = factor(reorder(Temporada, imdb, FUN = median), level = level_order), y = imdb) +
   geom_boxplot(fill = c("#A11D21"), width = 0.5) +
@@ -196,12 +195,85 @@ names(df_imdbeTemp)[names(df_imdbeTemp) == 'season'] <- 'Temporada'
   ) +
   labs(x = "Temporada", y = "Nota Imdb") +
   theme_estat()
-ggsave(file.path(caminho_andre, "boxplot.pdf"), width = 158, height = 93, units = "mm")
+#ggsave(file.path(caminho_andre, "boxplot.pdf"), width = 158, height = 93, units = "mm")
 
 #Dados para medida resumo
-df_imdbeTemp %>% 
-  group_by(Temporada) %>%
-  print_quadro_resumo()
+#df_imdbeTemp %>% 
+  #group_by(Temporada) %>%
+  #print_quadro_resumo()
+
+### 3)Top 3 terrenos mais frequentes pela ativação da armadilha; ----
+#3 tipos mais frequentes *E* quais funcionaram de primeira ou não? EXISTE RELAÇÃO entre o tipo de terreno e a ativação da armadilha pela primeira vez?
+#Definindo os dados desejados
+terreno_e_armadilha <- banco %>% select(trap_work_first, setting_terrain) %>% 
+   filter(trap_work_first == 'True' | trap_work_first == 'False')
+table(terreno_e_armadilha)
+terreno_e_armadilha <- terreno_e_armadilha %>%
+  mutate(setting_terrain = recode(setting_terrain, 'Urban' = 'Urbano','Forest' = 'Floresta', 'Rural' = 'Rural', 'Snow' = 'Neve', 'Island' = 'Ilha', 
+                'Swamp' = 'Pântano', 'Coast' = 'Costa', 'Desert' = 'Deserto', 'Cave' = 'Caverna', 'Ocean' = 'Oceano', 'Jungle' = 'Selva', 
+                'Mountain' = 'Montanha', 'Air' = 'Aéreo', 'Space' = 'Espaço'))
+#Criando gráfico 1 sobre os mais frequentes 
+classes <- terreno_e_armadilha %>%
+  count (setting_terrain) %>%
+  mutate(
+    freq = n,
+    relative_freq = round((freq / sum(freq)) * 100, 1),
+    freq = gsub("\\.", ",", relative_freq) %>% paste("%", sep = ""),
+    label = str_c(n, " (", freq, ")") %>% str_squish()
+  )
+
+ggplot(classes) +
+  aes(x = n, label = label, y = fct_reorder(setting_terrain, n, .desc=T)) +
+  geom_bar(stat = "identity", fill = "#A11D21", width = 0.7) +
+  geom_text(
+    position = position_dodge(width = .9),
+    vjust = 0.45, hjust = -0.005, angle = 0,
+    size = 2.5
+  ) + 
+  expand_limits(x = 135) +
+  labs(x = "Frequência", y = "Terrenos") +
+  theme_estat()
+  ggsave(file.path(caminho_andre, "colunas_freqTerreno.pdf") , width = 158, height = 93, units = "mm")
+
+# Filtrando os trêS mais usados em true e false e alterando nome de variaveis
+terreno_e_armadilha <- terreno_e_armadilha %>% 
+  filter(setting_terrain == 'Urbano' | setting_terrain == 'Rural' | setting_terrain == 'Floresta')
+
+
+#Criando Gráfico das Armadilhas
+trans_drv <- terreno_e_armadilha %>%
+  mutate(setting_terrain = case_when(
+    setting_terrain %>% str_detect("Urbano") ~ 'Urbano',
+    setting_terrain %>% str_detect("Rural") ~ "Rural",
+    setting_terrain %>% str_detect('Floresta') ~ 'Floresta'
+  )) %>%
+  group_by(setting_terrain, trap_work_first) %>%
+  summarise(freq = n()) %>%
+  mutate(
+    freq_relativa = round(freq / sum(freq) * 100,1)
+  )
+porcentagens <- str_c(trans_drv$freq_relativa, "%") %>% str_replace("
+\\.", ",")
+
+ <- str_squish(str_c(trans_drv$freq, " (", porcentagens, ")")
+)
+ggplot(trans_drv) +
+  aes(
+    x = fct_reorder(setting_terrain, freq, .desc = T), y = freq,
+    fill = trap_work_first, label = legendas
+  ) +
+  geom_col(position = position_dodge2(preserve = "single", padding =
+                                        0)) +
+  geom_text(
+    position = position_dodge(width = .9),
+    vjust = -0.5, hjust = 0.5,
+    size = 3
+  ) +
+  labs(x = "Terrenos", y = "Frequência") +
+  theme_estat()
+ggsave(file.path(caminho_andre, "colunasSimNao.pdf"), width = 158, height = 93, units = "mm")
+
+
 
 
 
