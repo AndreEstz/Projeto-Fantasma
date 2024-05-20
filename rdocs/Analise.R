@@ -123,6 +123,7 @@ print_quadro_resumo <- function(data, title="Medidas resumo da(o) [nome da vari�
   
   writeLines(latex)
 }
+
 ### 1) Numero de Lançamentos ----
 # Filtrando o data set
 data_e_lançamentos <- banco %>% select(date_aired,format ) %>% mutate(year(date_aired))
@@ -202,8 +203,7 @@ level_order <- c('1°', '2°', '3°', '4°')
   #group_by(Temporada) %>%
   #print_quadro_resumo()
 
-### 3)Top 3 terrenos mais frequentes pela ativação da armadilha; ----
-#3 tipos mais frequentes *E* quais funcionaram de primeira ou não? EXISTE RELAÇÃO entre o tipo de terreno e a ativação da armadilha pela primeira vez?
+### 3)Top 3 terrenos mais frequentes pela ativação da armadilha ----
 #Definindo os dados desejados
 terreno_e_armadilha <- banco %>% select(trap_work_first, setting_terrain) %>% 
    filter(trap_work_first == 'True' | trap_work_first == 'False')
@@ -238,7 +238,9 @@ ggplot(classes) +
 # Filtrando os trêS mais usados em true e false e alterando nome de variaveis
 terreno_e_armadilha <- terreno_e_armadilha %>% 
   filter(setting_terrain == 'Urbano' | setting_terrain == 'Rural' | setting_terrain == 'Floresta')
-
+names(terreno_e_armadilha)[names(terreno_e_armadilha) == 'trap_work_first'] <- 'Armadilha_Funcionou' 
+terreno_e_armadilha <- terreno_e_armadilha %>%
+  mutate(Armadilha_Funcionou = recode(Armadilha_Funcionou, 'True' = 'Sim', 'False' = 'Não'))
 
 #Criando Gráfico das Armadilhas
 trans_drv <- terreno_e_armadilha %>%
@@ -247,7 +249,7 @@ trans_drv <- terreno_e_armadilha %>%
     setting_terrain %>% str_detect("Rural") ~ "Rural",
     setting_terrain %>% str_detect('Floresta') ~ 'Floresta'
   )) %>%
-  group_by(setting_terrain, trap_work_first) %>%
+  group_by(setting_terrain, Armadilha_Funcionou) %>%
   summarise(freq = n()) %>%
   mutate(
     freq_relativa = round(freq / sum(freq) * 100,1)
@@ -255,26 +257,64 @@ trans_drv <- terreno_e_armadilha %>%
 porcentagens <- str_c(trans_drv$freq_relativa, "%") %>% str_replace("
 \\.", ",")
 
- <- str_squish(str_c(trans_drv$freq, " (", porcentagens, ")")
+legendas <- str_squish(str_c(trans_drv$freq, " (", porcentagens, ")")
 )
 ggplot(trans_drv) +
   aes(
     x = fct_reorder(setting_terrain, freq, .desc = T), y = freq,
-    fill = trap_work_first, label = legendas
+    fill = Armadilha_Funcionou, label = legendas
   ) +
   geom_col(position = position_dodge2(preserve = "single", padding =
                                         0)) +
+  guides(fill = guide_legend(title = 'Armadilha funcionou?')) +
   geom_text(
     position = position_dodge(width = .9),
     vjust = -0.5, hjust = 0.5,
     size = 3
   ) +
+  expand_limits(y = 70) +
   labs(x = "Terrenos", y = "Frequência") +
   theme_estat()
 ggsave(file.path(caminho_andre, "colunasSimNao.pdf"), width = 158, height = 93, units = "mm")
 
+### 4) Relação entre as notas IMDB e engajamento ----
+# A medida que as notas aumentam o engajamento tbm aumenta? não tem diferença?
+engajamento_imdb <- banco %>% select(engagement, imdb)
+#Gráfico de dispersão
+ggplot(engajamento_imdb) +
+  aes(x = imdb , y = engagement) +
+  geom_jitter(width = 0.5, height = 0.5, colour = '#A11D21') +
+  labs(
+    x = "Nota Imdb",
+    y = "Classificação de engajamento"
+  ) +
+  theme_estat()
+ggsave(file.path(caminho_andre, "distribuicao_imdb_engajamento.pdf"), width = 158, height = 93, units = "mm")
+#é so isso? não é possivel 
+
+### 5) Variação da nota de engajamento pelo personagem que conseguiu capturar o monstro ----
+#Boxplot entre personagens e engajamento 
+engajamento_captura <- banco %>% select(engagement, unmask_daphnie,unmask_fred,unmask_other,unmask_velma,unmask_shaggy,unmask_scooby)
+
+#Filtrando os trues
 
 
+# Gráfico BoxPlot multivariado
+#ggplot(engajamento_captura) +
+#  aes(x = factor(reorder(unmask_daphnie, engagement, FUN = median), y = cty) +
+ # geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+#  stat_summary(
+#    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white"
+#  ) +
+#  labs(x = "Transmissão", y = "Consumo em Cidade (milhas/galão)") +
+#  theme_estat()
+#ggsave("box_bi.pdf", width = 158, height = 93, units = "mm")
 
-
+ggplot(engajamento_captura) +
+  aes(x = (unmask_daphnie == 'True'), y = engagement) +
+  geom_boxplot(fill=c("#A11D21"), width = 0.5) +
+  guides(fill=FALSE) +
+  stat_summary(fun="mean", geom="point", shape=23, size=3, fill="white")+
+  labs(x="", y="Consumo em Cidade (milhas/galão)")+
+  theme_estat()
 
