@@ -161,7 +161,6 @@ data_e_lançamentos <- data_e_lançamentos %>%
 #Colocando ordem nos elementos
 level_order1 <- c('60', '70', '80', '90', '2000', '2010', '2020')
 
-
 #Gerando o gráfico final
 ggplot(data_e_lançamentos) +
   aes(x = factor(Decada, level = level_order1), y = n , group = Formatos, colour = Formatos) +
@@ -293,8 +292,20 @@ ggsave(file.path(caminho_andre, "distribuicao_imdb_engajamento.pdf"), width = 15
 #é so isso? não é possivel 
 
 ### 5) Variação da nota de engajamento pelo personagem que conseguiu capturar o monstro ----
+#mudar os true de cada um para tal pessoas capturou 
+#tACAR O PIVOT E JUNTAR TUDO!!!!!!!!
+
 #Boxplot entre personagens e engajamento 
 engajamento_captura <- banco %>% select(engagement, unmask_daphnie,unmask_fred,unmask_other,unmask_velma,unmask_shaggy,unmask_scooby)
+engajamento_captura <- engajamento_captura %>% pivot_longer(cols = c('unmask_daphnie', 'unmask_velma', 'unmask_fred', 'unmask_shaggy', 'unmask_scooby', 'unmask_other'),
+                                                            names_to = 'Quem Capturou',
+                                                            values_to = 'Valor')
+engajamento_captura <- engajamento_captura %>% mutate(`Quem Capturou` = recode(`Quem Capturou`, 'unmask_daphnie' = 'Daphnie', 'unmask_velma' = 'Velma', 'unmask_fred' = 'Fred', 'unmask_shaggy' = 'Salsicha', 'unmask_scooby' = 'Scooby', 'unmask_other' = 'Outros' ))
+engajamento_captura <- engajamento_captura %>% 
+  filter(Valor != 'False' ) %>%
+  filter(Valor != '')
+
+                                     
 
 #Filtrando os trues
 
