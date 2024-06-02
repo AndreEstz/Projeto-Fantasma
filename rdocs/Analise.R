@@ -13,6 +13,7 @@ library(readr)
 library(ggplot2)
 library(tidyr)
 library(tidyverse)
+library(DescTools)
 #setwd('C:/Users/André/OneDrive/Documentos/Documents/Trabalho/Projeto-Fantasma')
 
 #____ Bancos ----
@@ -49,17 +50,18 @@ theme_estat <- function(...) {
 
 caminho_andre <- 'resultados'
 
-print_quadro_resumo <- function(data, title="Medidas resumo da(o) [nome da variável]", label="quad:quadro_resumo1")
+print_quadro_resumo <- function(data, var_name, title="Medidas resumo da(o) [nome da variável]", label="quad:quadro_resumo1")
 {
+  var_name <- substitute(var_name)
   data <- data %>%
-    summarize(`Média` = round(mean(imdb),2),
-              `Desvio Padrão` = round(sd(imdb),2),
-              `Variância` = round(var(imdb),2),
-              `Mínimo` = round(min(imdb),2),
-              `1º Quartil` = round(quantile(imdb, probs = .25),2),
-              `Mediana` = round(quantile(imdb, probs = .5),2),
-              `3º Quartil` = round(quantile(imdb, probs = .75),2),
-              `Máximo` = round(max(imdb),2)) %>%
+    summarize(`Média` = round(mean(!!sym(var_name)),2),
+              `Desvio Padrão` = round(sd(!!sym(var_name)),2),
+              `Variância` = round(var(!!sym(var_name)),2),
+              `Mínimo` = round(min(!!sym(var_name)),2),
+              `1º Quartil` = round(quantile(!!sym(var_name), probs = .25),2),
+              `Mediana` = round(quantile(!!sym(var_name), probs = .5),2),
+              `3º Quartil` = round(quantile(!!sym(var_name), probs = .75),2),
+              `Máximo` = round(max(!!sym(var_name)),2)) %>%
     t() %>% 
     as.data.frame() %>%
     rownames_to_column()
@@ -170,7 +172,7 @@ ggplot(data_e_lançamentos) +
   geom_point(size = 2) +
   labs(x = "Décadas", y = "Frequência") +
   theme_estat()
-#ggsave(file.path(caminho_andre, "numero_de_lançamentos.pdf"), width = 158, height = 93, units = "mm")     
+ggsave(file.path(caminho_andre, "numero_de_lançamentos.pdf"), width = 158, height = 93, units = "mm")     
 
 ### 2) Variação IMDB ----
 #Colocar eixo x episodios y imdb e colocar em grupos na tag das temporadas
@@ -195,12 +197,15 @@ level_order <- c('1°', '2°', '3°', '4°')
   ) +
   labs(x = "Temporada", y = "Nota Imdb") +
   theme_estat()
-#ggsave(file.path(caminho_andre, "boxplot.pdf"), width = 158, height = 93, units = "mm")
+ggsave(file.path(caminho_andre, "temporada_por_Imdb.pdf"), width = 158, height = 93, units = "mm")
+
+#Vendo variação
+ContCoef(df_imdbeTemp$imdb, df_imdbeTemp$Temporada, correct = TRUE)
 
 #Dados para medida resumo
-#df_imdbeTemp %>% 
-  #group_by(Temporada) %>%
-  #print_quadro_resumo()
+df_imdbeTemp %>% 
+  group_by(Temporada) %>%
+  print_quadro_resumo(var_name = imdb)
 
 ### 3)Top 3 terrenos mais frequentes pela ativação da armadilha ----
 #Definindo os dados desejados
@@ -216,13 +221,13 @@ classes <- terreno_e_armadilha %>%
   count (setting_terrain) %>%
   mutate(
     freq = n,
-    relative_freq = round((freq / sum(freq)) * 100, 1),
+    relative_freq = round((freq / sum(freq)) * 100, 2),
     freq = gsub("\\.", ",", relative_freq) %>% paste("%", sep = ""),
     label = str_c(n, " (", freq, ")") %>% str_squish()
   )
-
+round(classes$relative_freq, 2)
 ggplot(classes) +
-  aes(x = n, label = label, y = fct_reorder(setting_terrain, n, .desc=T)) +
+  aes(x = n, label = label, y = fct_reorder(setting_terrain, n, .desc=F)) +
   geom_bar(stat = "identity", fill = "#A11D21", width = 0.7) +
   geom_text(
     position = position_dodge(width = .9),
@@ -277,55 +282,59 @@ ggplot(trans_drv) +
 ggsave(file.path(caminho_andre, "colunasSimNao.pdf"), width = 158, height = 93, units = "mm")
 
 ### 4) Relação entre as notas IMDB e engajamento ----
-# A medida que as notas aumentam o engajamento tbm aumenta? não tem diferença?
+#Definindo Data Frame
 engajamento_imdb <- banco %>% select(engagement, imdb)
+
 #Gráfico de dispersão
 ggplot(engajamento_imdb) +
-  aes(x = imdb , y = engagement) +
-  geom_jitter(width = 0.5, height = 0.5, colour = '#A11D21') +
+  aes(x = engagement , y = imdb) +
+  geom_jitter(width = 0.5, height = 0.5, colour = '#A11D21', alpha = 0.7)+
   labs(
-    x = "Nota Imdb",
-    y = "Classificação de engajamento"
+    x = "Classificação de engajamento",
+    y = "Nota Imdb"
   ) +
   theme_estat()
 ggsave(file.path(caminho_andre, "distribuicao_imdb_engajamento.pdf"), width = 158, height = 93, units = "mm")
-#é so isso? não é possivel 
+
+#Quadros
+engajamento_imdb %>% 
+  print_quadro_resumo(var_name = 'engagement')
+
+engajamento_imdb %>% 
+  print_quadro_resumo(var_name = 'imdb')
+
+#Coeficiente de pearson
+cor(engajamento_imdb$engagement, engajamento_imdb$imdb)
+
+
 
 ### 5) Variação da nota de engajamento pelo personagem que conseguiu capturar o monstro ----
-#mudar os true de cada um para tal pessoas capturou 
-#tACAR O PIVOT E JUNTAR TUDO!!!!!!!!
-
-#Boxplot entre personagens e engajamento 
-engajamento_captura <- banco %>% select(engagement, unmask_daphnie,unmask_fred,unmask_other,unmask_velma,unmask_shaggy,unmask_scooby)
-engajamento_captura <- engajamento_captura %>% pivot_longer(cols = c('unmask_daphnie', 'unmask_velma', 'unmask_fred', 'unmask_shaggy', 'unmask_scooby', 'unmask_other'),
+#Definindo Data Frame
+engajamento_captura <- banco %>% select(engagement, caught_daphnie,caught_fred,caught_other,caught_velma,caught_shaggy,caught_scooby, caught_not)
+engajamento_captura <- engajamento_captura %>% pivot_longer(cols = c('caught_fred', 'caught_daphnie', 'caught_velma', 'caught_shaggy', 
+                                                                     'caught_scooby', 'caught_other', 'caught_not'),
                                                             names_to = 'Quem Capturou',
                                                             values_to = 'Valor')
-engajamento_captura <- engajamento_captura %>% mutate(`Quem Capturou` = recode(`Quem Capturou`, 'unmask_daphnie' = 'Daphnie', 'unmask_velma' = 'Velma', 'unmask_fred' = 'Fred', 'unmask_shaggy' = 'Salsicha', 'unmask_scooby' = 'Scooby', 'unmask_other' = 'Outros' ))
+#Filtrando
+engajamento_captura <- engajamento_captura %>% 
+  mutate(`Quem Capturou` = recode(`Quem Capturou`, 'caught_daphnie' = 'Daphnie', 'caught_velma' = 'Velma', 'caught_fred' = 'Fred', 
+                                  'caught_shaggy' = 'Salsicha', 'caught_scooby' = 'Scooby', 'caught_other' = 'Outros', 'caught_not' = 'Não houve' ))
 engajamento_captura <- engajamento_captura %>% 
   filter(Valor != 'False' ) %>%
   filter(Valor != '')
 
-                                     
-
-#Filtrando os trues
-
-
+level_order2 = c('Daphnie', 'Fred', 'Salsicha', 'Scooby', 'Velma', 'Outros','Não houve')
 # Gráfico BoxPlot multivariado
-#ggplot(engajamento_captura) +
-#  aes(x = factor(reorder(unmask_daphnie, engagement, FUN = median), y = cty) +
- # geom_boxplot(fill = c("#A11D21"), width = 0.5) +
-#  stat_summary(
-#    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white"
-#  ) +
-#  labs(x = "Transmissão", y = "Consumo em Cidade (milhas/galão)") +
-#  theme_estat()
-#ggsave("box_bi.pdf", width = 158, height = 93, units = "mm")
-
 ggplot(engajamento_captura) +
-  aes(x = (unmask_daphnie == 'True'), y = engagement) +
-  geom_boxplot(fill=c("#A11D21"), width = 0.5) +
-  guides(fill=FALSE) +
-  stat_summary(fun="mean", geom="point", shape=23, size=3, fill="white")+
-  labs(x="", y="Consumo em Cidade (milhas/galão)")+
+  aes(x = factor(reorder(`Quem Capturou`, engagement, FUN = median), level = level_order2), y = engagement) +
+  geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+  stat_summary(
+    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white"
+  ) +
+  labs(x = "Personagem que capturou", y = "Engajamento") +
   theme_estat()
+ggsave(file.path(caminho_andre, "boxplot_engajamento_personagem.pdf"), width = 158, height = 93, units = "mm")
 
+engajamento_captura %>% 
+  group_by(`Quem Capturou`) %>%
+  print_quadro_resumo(var_name = 'engagement')
